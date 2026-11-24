@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>ИС ПАРСЕР [ВЕРСИЯ 1.0]</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  * { box-sizing: border-box; font-family: 'Share Tech Mono', monospace; }
+  
+  body { 
+    margin: 0; 
+    background-color: #020604; /* Глубокий темно-зеленый фон */
+    color: #00ff41; 
+    padding: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Контейнер для фоновых лиан */
+  #vines-bg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+    opacity: 0.6;
+  }
+
+  /* Стили для SVG-лиан */
+  .vine-svg {
+    position: absolute;
+    height: 120vh; /* Чуть больше экрана */
+    top: -10vh;
+    animation: sway 8s infinite alternate ease-in-out;
+  }
+
+  /* Анимация покачивания лиан */
+  @keyframes sway {
+    0% { transform: rotate(-3deg) translateY(0); }
+    100% { transform: rotate(3deg) translateY(-20px); }
+  }
+
+  /* Листья */
+  .leaf {
+    fill: #005a17;
+    stroke: #00ff41;
+    stroke-width: 1px;
+    filter: drop-shadow(0 0 5px #00ff41);
+    transform-origin: center;
+    animation: flutter 4s infinite alternate ease-in-out;
+  }
+
+  @keyframes flutter {
+    0% { transform: scale(0.9) rotate(-5deg); }
+    100% { transform: scale(1.1) rotate(5deg); }
+  }
+
+  h1 { 
+    color: #fff; 
+    font-size: 24px; 
+    text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41;
+    margin-top: 0; 
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Светящиеся рамки */
+  .panel { 
+    background: rgba(0, 15, 0, 0.85); 
+    border: 1px solid #00ff41; 
+    border-radius: 4px; 
+    padding: 15px; 
+    margin-bottom: 15px; 
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.2), inset 0 0 10px rgba(0, 255, 65, 0.1);
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(3px); /* Легкое размытие фона под панелью */
+  }
+
+  .panel::before {
+    content: '>';
+    position: absolute;
+    top: -10px; left: 10px;
+    background: #020604;
+    padding: 0 5px;
+    color: #00ff41;
+    font-weight: bold;
+  }
+
+  input, button { 
+    padding: 10px; 
+    font-size: 14px; 
+    font-family: 'Share Tech Mono', monospace;
+    border-radius: 4px; 
+    border: 1px solid #00ff41; 
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff41;
+    outline: none;
+    position: relative;
+    z-index: 2;
+  }
+
+  input:focus { box-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+
+  button { 
+    background: #00ff41; 
+    color: #000; 
+    border: none; 
+    cursor: pointer; 
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-left: 5px;
+  }
+
+  button:hover { 
+    background: #fff; 
+    box-shadow: 0 0 15px #00ff41;
+  }
+
+  button:disabled { 
+    background: #333; 
+    color: #666; 
+    border: 1px solid #333;
+    cursor: not-allowed; 
+    box-shadow: none;
+  }
+
+  .btn-danger { background: #ff003c; color: #fff; }
+  .btn-danger:hover { box-shadow: 0 0 15px #ff003c; background: #ff003c; color: #fff;}
+  .btn-alt { background: #0088ff; color: #fff; }
+  .btn-alt:hover { box-shadow: 0 0 15px #0088ff; background: #0088ff; color: #fff;}
+
+  /* Таблица */
+  .table-wrap { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    background: rgba(0, 10, 0, 0.9); 
+    border: 1px solid #00ff41;
+    box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.1);
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(3px);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { 
+    padding: 10px; 
+    border-bottom: 1px solid #003b00; 
+    text-align: left; 
+    font-size: 13px; 
+    vertical-align: top; 
+  }
+  th { 
+    background: #001a00; 
+    color: #00ff41; 
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  tr:hover { background: rgba(0, 255, 65, 0.1); }
+
+  #status { font-weight: bold; margin-left: 10px; }
+  .text-dim { color: #007a1f; font-size: 12px; }
+
+  /* ---- Всплывающее окно (Тост) ---- */
+  #toast {
+    position: fixed;
+    bottom: -300px; /* Изначально скрыто */
+    right: 20px;
+    width: 380px;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ff003c;
+    box-shadow: 0 0 30px rgba(255, 0, 60, 0.5);
+    color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    z-index: 9999;
+    transition: bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  #toast.show { bottom: 20px; }
+
+  #toast h3 { 
+    margin: 0 0 10px 0; 
+    color: #ff003c; 
+    font-size: 18px; 
+    text-transform: uppercase;
+    text-shadow: 0 0 10px #ff003c;
+  }
+
+  #toast p { margin: 0; font-size: 14px; line-height: 1.4; }
+
+  /* Эффект глитча/помех для текста */
+  .glitch {
+    animation: glitch-anim 0.2s infinite;
+    color: #ff003c;
+    font-weight: bold;
+  }
+
+  @keyframes glitch-anim {
+    0% { transform: translate(0) }
+    20% { transform: translate(-2px, 2px) }
+    40% { transform: translate(-2px, -2px) }
+    60% { transform: translate(2px, 2px) }
+    80% { transform: translate(2px, -2px) }
+    100% { transform: translate(0) }
+  }
+
+  .close-toast {
+    position: absolute;
+    top: 5px; right: 10px;
+    color: #666;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+  }
+  .close-toast:hover { color: #fff; }
+
+  /* Кастомный скроллбар */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #000; }
+  ::-webkit-scrollbar-thumb { background: #00ff41; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #fff; }
+</style>
+</head>
+<body>
+
+<!-- Фон с лианами -->
+<div id="vines-bg"></div>
+
+<h1>📊 ИС: Парсер & База данных</h1>
+
+<div class="panel">
+  <div class="text-dim" style="margin-bottom: 10px;">
+    > СИСТЕМА ГОТОВА. ДЛЯ ПАРСИНГА ВЫБЕРИТЕ .HTML ФАЙЛ САЙТА.<br>
+    > УРОВЕНЬ ДОСТУПА: ОГРАНИЧЕН (БЕЗ ПРАВ АДМИНИСТРАТОРА).
+  </div>
+  <input type="file" id="fileInput" accept=".html,.htm" style="border: 1px dashed #00ff41; cursor: pointer; width: 100%; margin-bottom: 10px; padding: 15px;">
+  <button id="btnParse" disabled>⚙️ Спарсить файл</button>
+  <span id="status"></span>
+</div>
+
+<div class="panel">
+  <input type="text" id="searchInput" placeholder="> Поиск по заголовку или тексту..." style="width: 300px;">
+  <button id="btnSearch">🔍 Найти</button>
+  <button id="btnAll" class="btn-alt">Показать всё</button>
+  <button id="btnClear" class="btn-danger">🗑 Очистить БД</button>
+</div>
+
+<div class="table-wrap">
+  <table id="dataTable">
+    <thead>
+      <tr><th>ID</th><th>Источник</th><th>Заголовок</th><th>Дата</th><th>Текст (превью)</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Всплывающее окно -->
+<div id="toast">
+  <span class="close-toast" onclick="document.getElementById('toast').classList.remove('show')">×</span>
+  <h3 class="glitch" id="toast-title">ОШИБКА СИСТЕМЫ!!!</h3>
+  <p id="toast-text" style="font-weight: bold; color: #ff003c;">
+    КАСТРИРОВАННЫЙ ПК! НИХУЯ НЕТ! СКАЧАТЬ НЕЛЬЗЯ! ВСЁ ЗАБЛОКИРОВАНО!!!
+  </p>
+  <p id="toast-text-2" style="margin-top: 10px; color: #aaa; font-size: 13px; display: none;">
+    ...Поэтому этот проект реализован как веб-приложение. Оно не требует установки, прав администратора или доступа к репозиториям. Просто открой файл и работай.
+  </p>
+</div>
+
+<script>
+// --- Генерация фоновых лиан ---
+const vinesBg = document.getElementById('vines-bg');
+
+function createVine(xOffset, delay, width, duration, color) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 800');
+  svg.setAttribute('class', 'vine-svg');
+  svg.style.left = xOffset + '%';
+  svg.style.width = width + 'px';
+  svg.style.animationDuration = duration + 's';
+  svg.style.animationDelay = delay + 's';
+  
+  // Основная линия (стебель)
+  let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  // Волнистая линия вниз
+  let d = "M 50 0 ";
+  for(let i = 1; i <= 10; i++) {
+    let y = i * 80;
+    let x = 50 + Math.sin(i) * 20;
+    d += `Q ${x+15} ${y-40}, ${x} ${y} `;
+  }
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', color);
+  path.setAttribute('stroke-width', '2');
+  path.setAttribute('opacity', '0.5');
+  svg.appendChild(path);
+
+  // Добавляем листья
+  for(let i = 1; i <= 9; i++) {
+    let y = i * 80;
+    let x = 50 + Math.sin(i) * 20;
+    let isLeft = i % 2 === 0;
+    
+    let leaf = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    // Форма листа (два изгиба)
+    let leafPath = isLeft 
+      ? `M ${x} ${y} Q ${x-30} ${y-10}, ${x-40} ${y+15} Q ${x-20} ${y+25}, ${x} ${y}` 
+      : `M ${x} ${y} Q ${x+30} ${y-10}, ${x+40} ${y+15} Q ${x+20} ${y+25}, ${x} ${y}`;
+      
+    leaf.setAttribute('d', leafPath);
+    leaf.setAttribute('class', 'leaf');
+    leaf.style.animationDelay = (Math.random() * 2) + 's';
+    // Подкрашиваем листья в разные оттенки
+    leaf.style.fill = color;
+    svg.appendChild(leaf);
+  }
+
+  vinesBg.appendChild(svg);
+}
+
+// Создаем несколько лиан с разными параметрами
+const colors = ['#00ff41', '#00cc33', '#008822'];
+for(let i = 0; i < 12; i++) {
+  let x = Math.random() * 100; // Случайная позиция по ширине
+  let delay = Math.random() * -10; // Случайная задержка анимации
+  let width = 50 + Math.random() * 100; // Случайная толщина
+  let duration = 6 + Math.random() * 6; // Случайная скорость покачивания
+  let color = colors[Math.floor(Math.random() * colors.length)];
+  createVine(x, delay, width, duration, color);
+}
+
+// --- Логика всплывающего окна ---
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    
+    // Через 2.5 секунды злость пропадает
+    setTimeout(() => {
+      const title = document.getElementById('toast-title');
+      title.classList.remove('glitch');
+      title.style.color = '#00ff41';
+      title.style.textShadow = '0 0 10px #00ff41';
+      title.textContent = 'ИНФОРМАЦИЯ';
+      
+      const text1 = document.getElementById('toast-text');
+      text1.style.color = '#00ff41';
+      text1.style.fontWeight = 'normal';
+      text1.textContent = 'Система обнаружила ограничения среды.';
+      
+      document.getElementById('toast-text-2').style.display = 'block';
+    }, 2500);
+  }, 1000);
+});
+
+// --- Инициализация БД (IndexedDB) ---
+const DB_NAME = 'ParserDB';
+const STORE = 'pages';
+let db;
+
+const openDB = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open(DB_NAME, 1);
+  req.onupgradeneeded = e => {
+    const d = e.target.result;
+    if (!d.objectStoreNames.contains(STORE)) {
+      d.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+    }
+  };
+  req.onsuccess = e => { db = e.target.result; resolve(); };
+  req.onerror = e => reject(e.target.error);
+});
+
+const addRecord = (record) => new Promise((resolve, reject) => {
+  const tx = db.transaction(STORE, 'readwrite');
+  const req = tx.objectStore(STORE).add(record);
+  req.onsuccess = () => resolve();
+  req.onerror = e => reject(e.target.error);
+});
+
+const getAllRecords = () => new Promise((resolve, reject) => {
+  const tx = db.transaction(STORE, 'readonly');
+  const req = tx.objectStore(STORE).getAll();
+  req.onsuccess = e => resolve(req.result.reverse());
+  req.onerror = e => reject(e.target.error);
+});
+
+const clearRecords = () => new Promise((resolve, reject) => {
+  const tx = db.transaction(STORE, 'readwrite');
+  const req = tx.objectStore(STORE).clear();
+  req.onsuccess = () => resolve();
+  req.onerror = e => reject(e.target.error);
+});
+
+// --- Элементы интерфейса ---
+const fileInput = document.getElementById('fileInput');
+const btnParse = document.getElementById('btnParse');
+const statusText = document.getElementById('status');
+const searchInput = document.getElementById('searchInput');
+const tbody = document.querySelector('#dataTable tbody');
+
+fileInput.addEventListener('change', () => {
+  btnParse.disabled = !fileInput.files.length;
+  statusText.textContent = '';
+});
+
+// --- Парсинг файла ---
+btnParse.onclick = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  
+  statusText.textContent = '> ЧТЕНИЕ ФАЙЛА...';
+  statusText.style.color = '#0088ff';
+  btnParse.disabled = true;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const html = e.target.result;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const title = doc.querySelector('title')?.textContent.trim() || 'Без заголовка';
+      doc.querySelectorAll('script, style, noscript').forEach(el => el.remove());
+      const text = doc.body?.textContent.replace(/\s+/g, ' ').trim() || '';
+      
+      if (!text) throw new Error('ФАЙЛ ПУСТ');
+
+      await addRecord({
+        source: file.name,
+        title: title.substring(0, 100),
+        content: text.substring(0, 5000),
+        date: new Date().toLocaleString('ru-RU')
+      });
+
+      statusText.textContent = '> УСПЕШНО СОХРАНЕНО!';
+      statusText.style.color = '#00ff41';
+      
+      fileInput.value = '';
+      btnParse.disabled = true;
+      loadData();
+    } catch (err) {
+      statusText.textContent = '> ОШИБКА: ' + err.message;
+      statusText.style.color = '#ff003c';
+      btnParse.disabled = false;
+    }
+  };
+  reader.onerror = () => {
+    statusText.textContent = '> ОШИБКА ЧТЕНИЯ ФАЙЛА';
+    statusText.style.color = '#ff003c';
+    btnParse.disabled = false;
+  };
+  reader.readAsText(file);
+};
+
+// --- Вывод данных ---
+async function loadData(filter = '') {
+  const all = await getAllRecords();
+  const f = filter.toLowerCase();
+  const filtered = f ? all.filter(r => 
+    r.title.toLowerCase().includes(f) || r.content.toLowerCase().includes(f)
+  ) : all;
+
+  tbody.innerHTML = filtered.map(r => `
+    <tr>
+      <td>${r.id}</td>
+      <td class="text-dim">${r.source}</td>
+      <td style="color: #fff;"><b>${r.title}</b></td>
+      <td style="white-space: nowrap">${r.date}</td>
+      <td class="text-dim">${r.content.substring(0, 150)}...</td>
+    </tr>
+  `).join('');
+}
+
+// --- События кнопок ---
+document.getElementById('btnSearch').onclick = () => loadData(searchInput.value);
+document.getElementById('btnAll').onclick = () => { searchInput.value = ''; loadData(); };
+document.getElementById('btnClear').onclick = async () => {
+  if (confirm('> УДАЛИТЬ ВСЕ ДАННЫЕ ИЗ БД?')) {
+    await clearRecords();
+    loadData();
+  }
+};
+
+// --- Старт ---
+(async () => {
+  await openDB();
+  loadData();
+})();
+</script>
+</body>
+</html>
